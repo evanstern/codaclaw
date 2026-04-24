@@ -429,9 +429,7 @@ async function buildContainerArgs(
   // the local proxy so agents use the host's Claude subscription.
   if (ANTHROPIC_BASE_URL) {
     args.push('-e', `ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}`);
-  }
-  if (ANTHROPIC_API_KEY) {
-    args.push('-e', `ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}`);
+    args.push('-e', `ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY || 'proxy-placeholder'}`);
   }
 
   // Host gateway
