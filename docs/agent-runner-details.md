@@ -2,6 +2,26 @@
 
 Implementation-level details for the agent-runner inside the container. See [architecture.md](architecture.md) for the high-level design.
 
+## CodaClaw v3 contract (card #164)
+
+The agent-runner's IO contract for CodaClaw v3 is:
+
+- **Input:** `/workspace/inbound.db` (SQLite, `journal_mode=DELETE`).
+  Host writes, container reads. Sole inbound surface.
+- **Output:** `/workspace/outbound.db` (SQLite, `journal_mode=DELETE`).
+  Container writes, host reads. Sole outbound surface.
+- **Execution:** Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`)
+  via the `claude` provider. Credentials injected from env
+  (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`) pointing at the
+  host's CLIProxyAPI.
+- **System prompt:** `AGENTS.md` auto-loaded by Claude Code from
+  `cwd=/workspace/agent` via `settingSources: ['project']`.
+- **Tools:** MCP servers registered in-process
+  (`mcp__nanoclaw__*` built-in) plus any from `container.json`.
+
+No stdin, no stdout markers, no IPC files, no side channels.
+The two session DBs are the contract.
+
 ## Separation of Concerns
 
 The agent-runner has two layers:
