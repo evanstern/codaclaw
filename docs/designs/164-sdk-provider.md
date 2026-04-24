@@ -29,7 +29,7 @@ Against the card's "Done when" checklist:
 | ------------------------------------------------------------ | ------------- | ------------------------------------------------------- |
 | SDK provider polls inbound.db, responds via Claude Agent SDK | ✅            | `poll-loop.ts` + `providers/claude.ts`                  |
 | Credentials injected via env, routed through CLIProxyAPI     | ✅            | `ClaudeProvider.env` passthrough                        |
-| AGENTS.md loaded as system prompt                            | ✅ (implicit) | `cwd: /workspace/agent` + `settingSources: ['project']` |
+| AGENTS.md loaded as system prompt                            | ✅ (implicit) | `cwd: /workspace/agent` + `settingSources: ['project', 'user']` |
 | MCP tools accessible to the SDK session                      | ✅            | `options.mcpServers` + allowlist `mcp__nanoclaw__*`     |
 | Existing agent-runner tests pass or are updated              | ⚠️ unverified | `bun test` in `container/agent-runner/`                 |
 | Container builds and runs with `./container/build.sh`        | ⚠️ unverified | needs validation                                        |
@@ -153,9 +153,10 @@ Before declaring #164 done we need:
 
 - `cd container/agent-runner && bun test` → green
 - `./container/build.sh` → image builds
-- Round-trip: host starts → message delivered → agent responds → outbound.db updated
+- Static check: `/pnpm/claude` present in the built image
 
-The round-trip is card #165's milestone. #164 just needs 1 and 2.
+The round-trip (host → container → SDK → outbound.db) belongs to
+#165. See the split table in "Alignment with #165" below.
 
 ---
 
