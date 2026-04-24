@@ -557,7 +557,7 @@ async function finishWithHandoff(
       'src/router.ts',
       'src/db/messaging-groups.ts',
       'logs/nanoclaw.log',
-      '.claude/skills/manage-channels/SKILL.md',
+      '.agents/skills/manage-channels/SKILL.md',
     ],
   });
 }

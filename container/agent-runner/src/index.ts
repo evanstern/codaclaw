@@ -13,12 +13,12 @@
  *     outbound.db       ← container-owned session DB
  *     .heartbeat        ← container touches for liveness detection
  *     outbox/           ← outbound files
- *     agent/            ← agent group folder (CLAUDE.md, container.json, working files)
+ *     agent/            ← agent group folder (AGENTS.md, container.json, working files)
  *       container.json  ← per-group config (RO nested mount)
  *     global/           ← shared global memory (RO)
  *   /app/src/           ← shared agent-runner source (RO)
  *   /app/skills/        ← shared skills (RO)
- *   /home/node/.claude/ ← Claude SDK state + skill symlinks (RW)
+ *   /home/node/.claude/ ← Claude Code SDK state + skill symlinks (RW)
  */
 
 import fs from 'fs';
@@ -48,9 +48,9 @@ async function main(): Promise<void> {
   // Runtime-generated system-prompt addendum: agent identity (name) plus
   // the live destinations map. Everything else (capabilities, per-module
   // instructions, per-channel formatting) is loaded by Claude Code from
-  // /workspace/agent/CLAUDE.md — the composed entry imports the shared
-  // base (/app/CLAUDE.md) and each enabled module's fragment. Per-group
-  // memory lives in /workspace/agent/CLAUDE.local.md (auto-loaded).
+  // /workspace/agent/AGENTS.md — the composed entry imports the shared
+  // base (/app/AGENTS.md) and each enabled module's fragment. Per-group
+  // memory lives in /workspace/agent/AGENTS.local.md (auto-loaded).
   const instructions = buildSystemPromptAddendum(config.assistantName || undefined);
 
   // Discover additional directories mounted at /workspace/extra/*

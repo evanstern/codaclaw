@@ -53,7 +53,7 @@ bash nanoclaw.sh
 
 - **多渠道消息** — WhatsApp、Telegram、Discord、Slack、Microsoft Teams、iMessage、Matrix、Google Chat、Webex、Linear、GitHub、WeChat，以及通过 Resend 的邮件。按需通过 `/add-<channel>` 技能安装。可同时运行一个或多个。
 - **灵活的隔离模式** — 可为每个渠道配一个独立智能体以获得完全隐私，也可让一个智能体在多个渠道上共享、统一记忆但会话独立，或者把多个渠道合并到一个共享会话里，让一场对话横跨多个入口。通过 `/manage-channels` 按渠道选择。详见 [docs/isolation-model.md](docs/isolation-model.md)。
-- **每个智能体的独立工作区** — 每个智能体组都有自己的 `CLAUDE.md`、自己的记忆、自己的容器，以及您允许的挂载点。除非您明确接线，否则不会有东西越过边界。
+- **每个智能体的独立工作区** — 每个智能体组都有自己的 `AGENTS.md`、自己的记忆、自己的容器，以及您允许的挂载点。除非您明确接线，否则不会有东西越过边界。
 - **计划任务** — 运行 Claude 的周期性作业，可以给您回发消息。
 - **网络访问** — 搜索和抓取网页内容。
 - **容器隔离** — 智能体在 Docker（macOS/Linux/WSL2）中沙箱化运行，可选 [Docker Sandboxes](docs/docker-sandboxes.md) 的微虚拟机隔离，或在 macOS 上选用 Apple Container 作为原生运行时。
@@ -134,7 +134,7 @@ NanoClaw 不用配置文件。想改就直接告诉 Claude Code：
 - `src/channels/` — 渠道适配器基础设施（适配器通过 `/add-<channel>` 技能安装）
 - `src/providers/` — 主机侧提供者配置（`claude` 内置，其他通过技能安装）
 - `container/agent-runner/` — Bun 版 agent-runner：轮询循环、MCP 工具、提供者抽象
-- `groups/<folder>/` — 每个智能体组的文件系统（`CLAUDE.md`、技能、容器配置）
+- `groups/<folder>/` — 每个智能体组的文件系统（`AGENTS.md`、技能、容器配置）
 
 ## FAQ
 

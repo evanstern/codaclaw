@@ -53,7 +53,7 @@ bash nanoclaw.sh
 
 - **マルチチャネルメッセージング** — WhatsApp、Telegram、Discord、Slack、Microsoft Teams、iMessage、Matrix、Google Chat、Webex、Linear、GitHub、WeChat、Resend経由のメール。`/add-<channel>`スキルでオンデマンドにインストール。1つでも複数でも同時に実行可能。
 - **柔軟な分離モデル** — チャネルごとに専用エージェントを割り当てて完全プライバシーを確保することも、複数チャネルで1つのエージェントを共有して会話は分離しつつメモリを統一することも、複数チャネルを1つの共有セッションにまとめて会話を横断させることもできます。`/manage-channels`でチャネル単位に選択。[docs/isolation-model.md](docs/isolation-model.md)参照。
-- **エージェントごとのワークスペース** — 各エージェントグループは独自の`CLAUDE.md`、独自のメモリ、独自のコンテナ、そしてあなたが許可したマウントのみを持ちます。明示的に配線しない限り、境界を越えるものはありません。
+- **エージェントごとのワークスペース** — 各エージェントグループは独自の`AGENTS.md`、独自のメモリ、独自のコンテナ、そしてあなたが許可したマウントのみを持ちます。明示的に配線しない限り、境界を越えるものはありません。
 - **スケジュールタスク** — Claudeを実行し、結果を返信できる定期ジョブ。
 - **Webアクセス** — Webからの検索とコンテンツ取得。
 - **コンテナ分離** — エージェントはDockerでサンドボックス化されます（macOS/Linux/WSL2）。[Docker Sandboxes](docs/docker-sandboxes.md)によるマイクロVM分離や、macOSネイティブのオプトインとしてApple Containerも選択可能です。
@@ -134,7 +134,7 @@ NanoClawは設定ファイルを使いません。変更したいときは、Cla
 - `src/channels/` — チャネルアダプターのインフラ（アダプターは`/add-<channel>`スキルでインストール）
 - `src/providers/` — ホスト側プロバイダー設定（`claude`はバンドル、その他はスキル経由）
 - `container/agent-runner/` — Bun製agent-runner：ポーリングループ、MCPツール、プロバイダー抽象化
-- `groups/<folder>/` — エージェントグループごとのファイルシステム（`CLAUDE.md`、スキル、コンテナ設定）
+- `groups/<folder>/` — エージェントグループごとのファイルシステム（`AGENTS.md`、スキル、コンテナ設定）
 
 ## FAQ
 

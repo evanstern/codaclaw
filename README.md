@@ -53,7 +53,7 @@ bash nanoclaw.sh
 
 - **Multi-channel messaging** — WhatsApp, Telegram, Discord, Slack, Microsoft Teams, iMessage, Matrix, Google Chat, Webex, Linear, GitHub, WeChat, and email via Resend. Installed on demand with `/add-<channel>` skills. Run one or many at the same time.
 - **Flexible isolation** — connect each channel to its own agent for full privacy, share one agent across many channels for unified memory with separate conversations, or fold multiple channels into a single shared session so one conversation spans many surfaces. Pick per channel via `/manage-channels`. See [docs/isolation-model.md](docs/isolation-model.md).
-- **Per-agent workspace** — each agent group has its own `CLAUDE.md`, its own memory, its own container, and only the mounts you allow. Nothing crosses the boundary unless you wire it to.
+- **Per-agent workspace** — each agent group has its own `AGENTS.md`, its own memory, its own container, and only the mounts you allow. Nothing crosses the boundary unless you wire it to.
 - **Scheduled tasks** — recurring jobs that run Claude and can message you back
 - **Web access** — search and fetch content from the web
 - **Container isolation** — agents are sandboxed in Docker (macOS/Linux/WSL2), with optional [Docker Sandboxes](docs/docker-sandboxes.md) micro-VM isolation or Apple Container as a macOS-native opt-in
@@ -134,7 +134,7 @@ Key files:
 - `src/channels/` — channel adapter infra (adapters installed via `/add-<channel>` skills)
 - `src/providers/` — host-side provider config (`claude` baked in; others via skills)
 - `container/agent-runner/` — Bun agent-runner: poll loop, MCP tools, provider abstraction
-- `groups/<folder>/` — per-agent-group filesystem (`CLAUDE.md`, skills, container config)
+- `groups/<folder>/` — per-agent-group filesystem (`AGENTS.md`, skills, container config)
 
 ## FAQ
 

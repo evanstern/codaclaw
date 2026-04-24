@@ -30,9 +30,9 @@ const DEFAULT_SETTINGS_JSON =
  * Source code and skills are shared RO mounts — not copied per-group.
  * Skill symlinks are synced at spawn time by container-runner.ts.
  *
- * The composed `CLAUDE.md` is NOT written here — it's regenerated on every
- * spawn by `composeGroupClaudeMd()` (see `claude-md-compose.ts`). Initial
- * per-group instructions (if provided) seed `CLAUDE.local.md`.
+ * The composed `AGENTS.md` is NOT written here — it's regenerated on every
+ * spawn by `composeGroupAgentsMd()` (see `agents-md-compose.ts`). Initial
+ * per-group instructions (if provided) seed `AGENTS.local.md`.
  */
 export function initGroupFilesystem(group: AgentGroup, opts?: { instructions?: string }): void {
   const initialized: string[] = [];
@@ -44,13 +44,13 @@ export function initGroupFilesystem(group: AgentGroup, opts?: { instructions?: s
     initialized.push('groupDir');
   }
 
-  // groups/<folder>/CLAUDE.local.md — per-group agent memory, auto-loaded by
+  // groups/<folder>/AGENTS.local.md — per-group agent memory, auto-loaded by
   // Claude Code. Seeded with caller-provided instructions on first creation.
-  const claudeLocalFile = path.join(groupDir, 'CLAUDE.local.md');
-  if (!fs.existsSync(claudeLocalFile)) {
+  const agentsLocalFile = path.join(groupDir, 'AGENTS.local.md');
+  if (!fs.existsSync(agentsLocalFile)) {
     const body = opts?.instructions ? opts.instructions + '\n' : '';
-    fs.writeFileSync(claudeLocalFile, body);
-    initialized.push('CLAUDE.local.md');
+    fs.writeFileSync(agentsLocalFile, body);
+    initialized.push('AGENTS.local.md');
   }
 
   // groups/<folder>/container.json — empty container config, replaces the
@@ -60,14 +60,14 @@ export function initGroupFilesystem(group: AgentGroup, opts?: { instructions?: s
     initialized.push('container.json');
   }
 
-  // 2. data/v2-sessions/<id>/.claude-shared/ — Claude state + per-group skills
-  const claudeDir = path.join(DATA_DIR, 'v2-sessions', group.id, '.claude-shared');
-  if (!fs.existsSync(claudeDir)) {
-    fs.mkdirSync(claudeDir, { recursive: true });
-    initialized.push('.claude-shared');
+  // 2. data/v2-sessions/<id>/.agents-shared/ — Claude state + per-group skills
+  const agentsDir = path.join(DATA_DIR, 'v2-sessions', group.id, '.agents-shared');
+  if (!fs.existsSync(agentsDir)) {
+    fs.mkdirSync(agentsDir, { recursive: true });
+    initialized.push('.agents-shared');
   }
 
-  const settingsFile = path.join(claudeDir, 'settings.json');
+  const settingsFile = path.join(agentsDir, 'settings.json');
   if (!fs.existsSync(settingsFile)) {
     fs.writeFileSync(settingsFile, DEFAULT_SETTINGS_JSON);
     initialized.push('settings.json');
@@ -75,7 +75,7 @@ export function initGroupFilesystem(group: AgentGroup, opts?: { instructions?: s
 
   // Skills directory — created empty here; symlinks are synced at spawn
   // time by container-runner.ts based on container.json skills selection.
-  const skillsDst = path.join(claudeDir, 'skills');
+  const skillsDst = path.join(agentsDir, 'skills');
   if (!fs.existsSync(skillsDst)) {
     fs.mkdirSync(skillsDst, { recursive: true });
     initialized.push('skills/');

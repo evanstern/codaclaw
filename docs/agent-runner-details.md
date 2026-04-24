@@ -231,7 +231,7 @@ class CodexProvider implements AgentProvider {
 ```
 
 **Codex-specific behavior inside the provider:**
-- `developer_instructions` for system prompt (loaded from CLAUDE.md)
+- `developer_instructions` for system prompt (loaded from AGENTS.md)
 - `git init` in workspace (Codex requires a git repo)
 - Abort+restart pattern for follow-up messages
 - `sandboxMode`, `approvalPolicy`, `networkAccessEnabled` from env vars
@@ -713,7 +713,7 @@ These are ephemeral to the container's lifetime. When the container is killed an
 The agent-runner receives configuration via:
 
 - **Environment variables:** `AGENT_PROVIDER` (claude/codex/opencode), `NANOCLAW_ADMIN_USER_ID`, provider-specific vars (API keys, model overrides), `TZ`
-- **Fixed mount paths:** Session DB at `/workspace/session.db`. Agent group folder at `/workspace/agent/`. System prompt from `/workspace/agent/CLAUDE.md` and `/workspace/global/CLAUDE.md`.
+- **Fixed mount paths:** Session DB at `/workspace/session.db`. Agent group folder at `/workspace/agent/`. System prompt from `/workspace/agent/AGENTS.md` and `/workspace/global/AGENTS.md`.
 - **Optional startup config:** Some config may be passed as a JSON file at a fixed path (e.g., `/workspace/config.json`) for things like the session ID to resume, assistant name, and admin user ID. This avoids overloading environment variables.
 
 The agent-runner reads config, creates the provider, and enters the poll loop. No stdin, no initial prompt — messages are already in the session DB.
@@ -739,7 +739,7 @@ The provider name comes from the container's environment (`AGENT_PROVIDER` env v
 
 - MCP server is a separate Node process spawned by the provider (via `mcpServers` config)
 - The MCP server binary is shared across providers — same tools, same DB access
-- CLAUDE.md loading (global + per-group) — agent-runner reads and passes as `systemPrompt`
+- AGENTS.md loading (global + per-group) — agent-runner reads and passes as `systemPrompt`
 - Additional directories discovery (`/workspace/extra/*`)
 - Logging via stderr (`[agent-runner] ...`)
 
