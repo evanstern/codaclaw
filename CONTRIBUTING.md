@@ -33,7 +33,7 @@ Every user should have clean and minimal code that does exactly what they need. 
 
 Add capabilities to NanoClaw by merging a git branch. The SKILL.md contains setup instructions; the actual code lives on a `skill/*` branch.
 
-**Location:** `.claude/skills/` on `main` (instructions only), code on `skill/*` branch
+**Location:** `.agents/skills/` on `main` (instructions only), code on `skill/*` branch
 
 **Examples:** `/add-telegram`, `/add-slack`, `/add-discord`, `/add-gmail`
 
@@ -45,7 +45,7 @@ Add capabilities to NanoClaw by merging a git branch. The SKILL.md contains setu
 **Contributing a feature skill:**
 1. Fork `qwibitai/nanoclaw` and branch from `main`
 2. Make the code changes (new files, modified source, updated `package.json`, etc.)
-3. Add a SKILL.md in `.claude/skills/<name>/` with setup instructions — step 1 should be merging the branch
+3. Add a SKILL.md in `.agents/skills/<name>/` with setup instructions — step 1 should be merging the branch
 4. Open a PR. We'll create the `skill/<name>` branch from your work
 
 See `/add-telegram` for a good example. See [docs/skills-as-branches.md](docs/skills-as-branches.md) for the full system design.
@@ -54,7 +54,7 @@ See `/add-telegram` for a good example. See [docs/skills-as-branches.md](docs/sk
 
 Standalone tools that ship code files alongside the SKILL.md. The SKILL.md tells Claude how to install the tool; the code lives in the skill directory itself (e.g. in a `scripts/` subfolder).
 
-**Location:** `.claude/skills/<name>/` with supporting files
+**Location:** `.agents/skills/<name>/` with supporting files
 
 **Examples:** `/claw` (Python CLI in `scripts/claw`)
 
@@ -69,7 +69,7 @@ Standalone tools that ship code files alongside the SKILL.md. The SKILL.md tells
 
 Workflows and guides with no code changes. The SKILL.md is the entire skill — Claude follows the instructions to perform a task.
 
-**Location:** `.claude/skills/` on `main`
+**Location:** `.agents/skills/` on `main`
 
 **Examples:** `/setup`, `/debug`, `/customize`, `/update-nanoclaw`, `/update-skills`
 
@@ -80,7 +80,7 @@ Workflows and guides with no code changes. The SKILL.md is the entire skill — 
 
 #### 4. Container skills (agent runtime)
 
-Skills that run inside the agent container, not on the host. These teach the container agent how to use tools, format output, or perform tasks. They are synced into each group's `.claude/skills/` directory when a container starts.
+Skills that run inside the agent container, not on the host. These teach the container agent how to use tools, format output, or perform tasks. They are synced into each group's `.agents/skills/` directory when a container starts.
 
 **Location:** `container/skills/<name>/`
 

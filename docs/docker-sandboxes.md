@@ -195,7 +195,7 @@ bash container/build.sh
 
 ```bash
 # Apply the Telegram skill
-pnpm exec tsx scripts/apply-skill.ts .claude/skills/add-telegram
+pnpm exec tsx scripts/apply-skill.ts .agents/skills/add-telegram
 
 # Rebuild after applying the skill
 pnpm run build
@@ -235,7 +235,7 @@ Make sure you configured proxy bypass in [Step 1](#step-1-create-the-sandbox) fi
 
 ```bash
 # Apply the WhatsApp skill
-pnpm exec tsx scripts/apply-skill.ts .claude/skills/add-whatsapp
+pnpm exec tsx scripts/apply-skill.ts .agents/skills/add-whatsapp
 
 # Rebuild
 pnpm run build

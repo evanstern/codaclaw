@@ -19,7 +19,7 @@ Each agent session has a mounted SQLite DB. The DB is the one and only IO mechan
 
 ## Agent Groups vs Sessions
 
-An agent group has its own filesystem — folder, CLAUDE.md, skills, container config. Multiple sessions can share the same agent group (same filesystem, same skills) but each session gets its own DB mounted at a known path. Each session = a separate container with the same agent group's filesystem but a different session DB.
+An agent group has its own filesystem — folder, AGENTS.md, skills, container config. Multiple sessions can share the same agent group (same filesystem, same skills) but each session gets its own DB mounted at a known path. Each session = a separate container with the same agent group's filesystem but a different session DB.
 
 ## Message Flow
 
@@ -393,7 +393,7 @@ This is documented as a pattern, not a built-in feature.
 ## Core Properties
 - Container isolation via filesystem mounts
 - Credential proxy (OneCLI)
-- Per-agent-group workspace (folder, CLAUDE.md, skills)
+- Per-agent-group workspace (folder, AGENTS.md, skills)
 - Polling-based (not event-driven)
 - Per-agent-group agent-runner recompilation on container startup (agent can modify its own source, request rebuild/restart, changes persist across teardowns)
 - Host ↔ container IO through mounted session DBs (`messages_in` / `messages_out`) — no stdin piping, no IPC files
@@ -418,7 +418,7 @@ This is documented as a pattern, not a built-in feature.
   session.db                ← session SQLite DB
   outbox/                   ← agent-runner writes outbound files here
   agent/                    ← mount: agent group folder (nested, read-write)
-    CLAUDE.md               ← agent instructions
+    AGENTS.md               ← agent instructions
     skills/                 ← agent skills
     ... working files
 ```
@@ -610,7 +610,7 @@ These are the building blocks. None require special abstractions — they fall o
 
 1. **Multiple agent groups on the same channel with content-based routing.** Different messages in the same thread can route to different agent groups based on content (e.g., @mention routes to supervisor, normal messages route to worker). The channel adapter's routing logic — custom code — decides.
 
-2. **Per-thread sessions from a shared agent group.** Multiple sessions share the same agent group (filesystem, skills, CLAUDE.md) but each gets its own session DB. Standard for worker pools.
+2. **Per-thread sessions from a shared agent group.** Multiple sessions share the same agent group (filesystem, skills, AGENTS.md) but each gets its own session DB. Standard for worker pools.
 
 3. **Session reset and replay.** Create a new session for the same thread. Mark old messages as unhandled so the poll picks them up again. Old output stays visible in the platform (e.g., Discord thread) for comparison. This is an action an agent can request — not automatic.
 
@@ -657,7 +657,7 @@ Three agent groups, one Discord channel (PR Factory), plus an admin channel:
 The central DB handles routing and entity management. All content and execution state lives in per-session DBs.
 
 ```sql
--- Agent workspaces: folder, skills, CLAUDE.md, container config
+-- Agent workspaces: folder, skills, AGENTS.md, container config
 CREATE TABLE agent_groups (
   id               TEXT PRIMARY KEY,
   name             TEXT NOT NULL,
@@ -894,7 +894,7 @@ Pre-scripts: if a task message has a `script` field, run it first. If `wakeAgent
 
 - AgentProvider interface wraps SDK-specific query logic (trunk ships the `claude` provider; additional providers like OpenCode install via `/add-<provider>` skills)
 - Session resume via provider-specific mechanisms
-- System prompt loading from CLAUDE.md files
+- System prompt loading from AGENTS.md files
 - PreCompact hook for transcript archiving (Claude provider)
 - Script execution for task-kind messages
 
@@ -902,7 +902,7 @@ Pre-scripts: if a task message has a `script` field, run it first. If `wakeAgent
 
 - **Approval routing** — how does the host find the admin's DM conversation? What if no DM channel exists? Is the approval list configurable per agent group or global?
 - **MCP server lifecycle** — does the MCP server process persist across multiple queries in the same container, or restart each time?
-- **Container startup config** — what config (if any) is passed to the container at launch beyond env vars? The session DB is at a fixed mount path. System prompt comes from CLAUDE.md. Provider name comes from env. What else?
+- **Container startup config** — what config (if any) is passed to the container at launch beyond env vars? The session DB is at a fixed mount path. System prompt comes from AGENTS.md. Provider name comes from env. What else?
 - **Idle detection with pending questions** — when `ask_user_question` is waiting for a response, the container should not be considered idle. Also need to detect when the agent is still working (active tool calls, subagents) and avoid killing the container even if no messages_out have been written recently.
 
 ## Related Documents

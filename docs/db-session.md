@@ -17,7 +17,7 @@ data/v2-sessions/<agent_group_id>/<session_id>/
   outbox/<message_id>/    ← attachments the agent produced
 ```
 
-One session = one folder = one pair of DBs. The `agent_group_id` parent directory also holds per-group state (`.claude-shared/`, `agent-runner-src/`) that is shared across every session of that agent group.
+One session = one folder = one pair of DBs. The `agent_group_id` parent directory also holds per-group state (`.agents-shared/`, `agent-runner-src/`) that is shared across every session of that agent group.
 
 Path helpers in `src/session-manager.ts`: `sessionDir()`, `inboundDbPath()`, `outboundDbPath()`, `heartbeatPath()`.
 
