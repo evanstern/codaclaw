@@ -23,7 +23,7 @@ import net from 'net';
 import os from 'os';
 import path from 'path';
 
-import { isContainerRunning, isContainerStarting, wakeContainer } from './container-runner.js';
+import { isContainerRunning, isContainerStarting, killContainer, wakeContainer } from './container-runner.js';
 import { createAgentGroup, getAgentGroup } from './db/agent-groups.js';
 import { getSession } from './db/sessions.js';
 import { initGroupFilesystem } from './group-init.js';
@@ -219,8 +219,13 @@ async function handleStart(req: Extract<PluginRequest, { op: 'start' }>): Promis
   return { ok: true, session_id: session.id };
 }
 
-async function handleStop(_req: Extract<PluginRequest, { op: 'stop' }>): Promise<PluginResponse> {
-  return { ok: false, error: 'not implemented' };
+async function handleStop(req: Extract<PluginRequest, { op: 'stop' }>): Promise<PluginResponse> {
+  const session = getSession(req.session_id);
+  if (!session) {
+    return { ok: false, error: 'unknown session' };
+  }
+  killContainer(req.session_id, 'plugin stop');
+  return { ok: true };
 }
 
 async function handleDeliver(req: Extract<PluginRequest, { op: 'deliver' }>): Promise<PluginResponse> {
