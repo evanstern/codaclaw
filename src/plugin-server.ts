@@ -23,6 +23,8 @@ import net from 'net';
 import os from 'os';
 import path from 'path';
 
+import { isContainerRunning, isContainerStarting } from './container-runner.js';
+import { getSession } from './db/sessions.js';
 import { log } from './log.js';
 
 /**
@@ -195,8 +197,22 @@ async function handleDeliver(_req: Extract<PluginRequest, { op: 'deliver' }>): P
   return { ok: false, error: 'not implemented' };
 }
 
-async function handleHealth(_req: Extract<PluginRequest, { op: 'health' }>): Promise<PluginResponse> {
-  return { ok: false, error: 'not implemented' };
+async function handleHealth(req: Extract<PluginRequest, { op: 'health' }>): Promise<PluginResponse> {
+  const session = getSession(req.session_id);
+  if (!session) {
+    return { ok: false, error: 'unknown session' };
+  }
+
+  if (isContainerRunning(req.session_id)) {
+    return { ok: true, state: 'running', healthy: true, detail: '' };
+  }
+  if (isContainerStarting(req.session_id)) {
+    return { ok: true, state: 'started', healthy: false, detail: 'container starting' };
+  }
+  if (session.last_active === null) {
+    return { ok: true, state: 'created', healthy: false, detail: 'awaiting wakeContainer' };
+  }
+  return { ok: true, state: 'stopped', healthy: false, detail: 'exited normally' };
 }
 
 async function handleOutput(_req: Extract<PluginRequest, { op: 'output' }>): Promise<PluginResponse> {
