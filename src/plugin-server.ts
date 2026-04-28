@@ -28,7 +28,7 @@ import { createAgentGroup, getAgentGroup } from './db/agent-groups.js';
 import { getSession } from './db/sessions.js';
 import { initGroupFilesystem } from './group-init.js';
 import { log } from './log.js';
-import { resolveSession } from './session-manager.js';
+import { resolveSession, writeSessionMessage } from './session-manager.js';
 
 /**
  * Inbound message envelope when delivering to a session. Body is utf-8
@@ -223,8 +223,40 @@ async function handleStop(_req: Extract<PluginRequest, { op: 'stop' }>): Promise
   return { ok: false, error: 'not implemented' };
 }
 
-async function handleDeliver(_req: Extract<PluginRequest, { op: 'deliver' }>): Promise<PluginResponse> {
-  return { ok: false, error: 'not implemented' };
+async function handleDeliver(req: Extract<PluginRequest, { op: 'deliver' }>): Promise<PluginResponse> {
+  const session = getSession(req.session_id);
+  if (!session) {
+    return { ok: false, error: 'unknown session' };
+  }
+  if (!req.message || typeof req.message !== 'object') {
+    return { ok: false, error: 'missing message' };
+  }
+  const { id, from, body } = req.message;
+  if (!id || !from || typeof body !== 'string') {
+    return { ok: false, error: 'invalid message shape' };
+  }
+
+  // channel_type='coda' is the load-bearing per-row discriminant for the
+  // Output() cursor-ownership invariant: only coda-mediated rows are
+  // drained by the plugin's output op, host delivery skips them.
+  // platform_id carries the coda-side sender so the agent-runner's
+  // single-destination fallback can route a reply back without a
+  // messaging-groups row (mirrors validate-165 wiring).
+  writeSessionMessage(session.agent_group_id, session.id, {
+    id,
+    kind: 'chat',
+    timestamp: new Date().toISOString(),
+    platformId: from,
+    channelType: 'coda',
+    content: JSON.stringify({ text: body }),
+    trigger: 1,
+  });
+
+  wakeContainer(session).catch((err) => {
+    log.error('Plugin deliver wakeContainer failed', { sessionId: session.id, err });
+  });
+
+  return { ok: true, delivered: true };
 }
 
 async function handleHealth(req: Extract<PluginRequest, { op: 'health' }>): Promise<PluginResponse> {
