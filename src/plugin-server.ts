@@ -23,9 +23,12 @@ import net from 'net';
 import os from 'os';
 import path from 'path';
 
-import { isContainerRunning, isContainerStarting } from './container-runner.js';
+import { isContainerRunning, isContainerStarting, wakeContainer } from './container-runner.js';
+import { createAgentGroup, getAgentGroup } from './db/agent-groups.js';
 import { getSession } from './db/sessions.js';
+import { initGroupFilesystem } from './group-init.js';
 import { log } from './log.js';
+import { resolveSession } from './session-manager.js';
 
 /**
  * Inbound message envelope when delivering to a session. Body is utf-8
@@ -185,8 +188,35 @@ async function dispatch(line: string): Promise<PluginResponse> {
   }
 }
 
-async function handleStart(_req: Extract<PluginRequest, { op: 'start' }>): Promise<PluginResponse> {
-  return { ok: false, error: 'not implemented' };
+async function handleStart(req: Extract<PluginRequest, { op: 'start' }>): Promise<PluginResponse> {
+  const slug = req.agent;
+  if (!slug || typeof slug !== 'string') {
+    return { ok: false, error: 'missing agent slug' };
+  }
+
+  let group = getAgentGroup(slug);
+  if (!group) {
+    group = {
+      id: slug,
+      name: slug,
+      folder: slug,
+      agent_provider: null,
+      created_at: new Date().toISOString(),
+    };
+    createAgentGroup(group);
+    log.info('Plugin start created agent group', { slug });
+  }
+
+  initGroupFilesystem(group);
+
+  const { session, created } = resolveSession(group.id, null, null, 'agent-shared');
+  log.info('Plugin start resolved session', { slug, sessionId: session.id, created });
+
+  wakeContainer(session).catch((err) => {
+    log.error('Plugin start wakeContainer failed', { sessionId: session.id, err });
+  });
+
+  return { ok: true, session_id: session.id };
 }
 
 async function handleStop(_req: Extract<PluginRequest, { op: 'stop' }>): Promise<PluginResponse> {
