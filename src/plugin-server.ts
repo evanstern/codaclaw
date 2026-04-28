@@ -28,7 +28,7 @@ import { createAgentGroup, getAgentGroup } from './db/agent-groups.js';
 import { getSession } from './db/sessions.js';
 import { initGroupFilesystem } from './group-init.js';
 import { log } from './log.js';
-import { resolveSession, writeSessionMessage } from './session-manager.js';
+import { openOutboundDb, resolveSession, writeSessionMessage } from './session-manager.js';
 
 /**
  * Inbound message envelope when delivering to a session. Body is utf-8
@@ -277,6 +277,44 @@ async function handleHealth(req: Extract<PluginRequest, { op: 'health' }>): Prom
   return { ok: true, state: 'stopped', healthy: false, detail: 'exited normally' };
 }
 
-async function handleOutput(_req: Extract<PluginRequest, { op: 'output' }>): Promise<PluginResponse> {
-  return { ok: false, error: 'not implemented' };
+async function handleOutput(req: Extract<PluginRequest, { op: 'output' }>): Promise<PluginResponse> {
+  const session = getSession(req.session_id);
+  if (!session) {
+    return { ok: false, error: 'unknown session' };
+  }
+
+  // channel_type='coda' is the Output() cursor-ownership filter — coda
+  // owns the cursor on these rows, host delivery must skip them. See
+  // deliver op for the writer side of this invariant.
+  const since = req.since;
+  const db = openOutboundDb(session.agent_group_id, session.id);
+  try {
+    const rows = since
+      ? (db
+          .prepare(
+            `SELECT id, timestamp, kind, content
+             FROM messages_out
+             WHERE channel_type = 'coda' AND timestamp > ?
+             ORDER BY seq ASC`,
+          )
+          .all(since) as Array<{ id: string; timestamp: string; kind: string; content: string }>)
+      : (db
+          .prepare(
+            `SELECT id, timestamp, kind, content
+             FROM messages_out
+             WHERE channel_type = 'coda'
+             ORDER BY seq ASC`,
+          )
+          .all() as Array<{ id: string; timestamp: string; kind: string; content: string }>);
+
+    const messages = rows.map((r) => ({
+      id: r.id,
+      timestamp: r.timestamp,
+      type: r.kind,
+      body: r.content,
+    }));
+    return { ok: true, messages };
+  } finally {
+    db.close();
+  }
 }
