@@ -27,6 +27,22 @@ import { pauseTypingRefreshAfterDelivery, setTypingAdapter } from './modules/typ
 import type { OutboundFile } from './channels/adapter.js';
 import type { Session } from './types.js';
 
+/**
+ * Output() cursor-ownership invariant. coda_managed sessions have their
+ * channel_type='coda' rows drained by the plugin's output op, not by the
+ * host loop. A2A (channel_type='agent') and any other channel still pass
+ * through — coda-managed composes with A2A per spec.
+ *
+ * Exported for direct unit testing — Card C's regression-critical case.
+ */
+export function applyCursorOwnershipFilter<T extends { channel_type: string | null }>(
+  session: Pick<Session, 'coda_managed'>,
+  messages: T[],
+): T[] {
+  if (session.coda_managed !== 1) return messages;
+  return messages.filter((m) => m.channel_type !== 'coda');
+}
+
 const ACTIVE_POLL_MS = 1000;
 const SWEEP_POLL_MS = 60_000;
 const MAX_DELIVERY_ATTEMPTS = 3;
@@ -181,7 +197,11 @@ async function drainSession(session: Session): Promise<void> {
 
     // Filter out already-delivered messages using inbound.db's delivered table
     const delivered = getDeliveredIds(inDb);
-    const undelivered = allDue.filter((m) => !delivered.has(m.id));
+    const undelivered = applyCursorOwnershipFilter(
+      session,
+      allDue.filter((m) => !delivered.has(m.id)),
+    );
+
     if (undelivered.length === 0) return;
 
     // Ensure platform_message_id column exists (migration for existing sessions)

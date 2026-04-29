@@ -28,7 +28,7 @@ const TEST_DIR = '/tmp/nanoclaw-test-delivery';
 
 import { initTestDb, closeDb, runMigrations, createAgentGroup, createMessagingGroup } from './db/index.js';
 import { resolveSession, outboundDbPath } from './session-manager.js';
-import { deliverSessionMessages, setDeliveryAdapter } from './delivery.js';
+import { applyCursorOwnershipFilter, deliverSessionMessages, setDeliveryAdapter } from './delivery.js';
 
 function now(): string {
   return new Date().toISOString();
@@ -59,6 +59,15 @@ function insertOutbound(agentGroupId: string, sessionId: string, msgId: string):
     `INSERT INTO messages_out (id, timestamp, kind, platform_id, channel_type, content)
      VALUES (?, datetime('now'), 'chat', 'telegram:123', 'telegram', ?)`,
   ).run(msgId, JSON.stringify({ text: 'hello' }));
+  db.close();
+}
+
+function insertOutboundOnChannel(agentGroupId: string, sessionId: string, msgId: string, channelType: string): void {
+  const db = new Database(outboundDbPath(agentGroupId, sessionId));
+  db.prepare(
+    `INSERT INTO messages_out (id, timestamp, kind, platform_id, channel_type, content)
+     VALUES (?, datetime('now'), 'chat', 'plat:1', ?, ?)`,
+  ).run(msgId, channelType, JSON.stringify({ text: 'hello' }));
   db.close();
 }
 
@@ -119,6 +128,49 @@ describe('deliverSessionMessages — concurrent invocations', () => {
     insertOutbound('ag-1', session.id, 'out-second');
     await deliverSessionMessages(session);
     expect(calls).toHaveLength(2);
+  });
+
+  /*
+   * Card C — Output() cursor-ownership invariant. coda_managed sessions
+   * have their channel_type='coda' rows drained by the plugin's output
+   * op, not by the host loop. Spec calls this "regression-critical" —
+   * the filter must cut exactly one way: drop coda-channel rows on
+   * coda_managed sessions, pass everything else. Three-way truth table
+   * over (coda_managed × channel_type) covered explicitly so that any
+   * future scope creep on either axis fails the suite.
+   */
+  it('drops coda rows on coda_managed sessions, end-to-end via the host loop', async () => {
+    seedAgentAndChannel();
+    const { session } = resolveSession('ag-1', 'mg-1', null, 'shared');
+    const { updateSession, getSession } = await import('./db/sessions.js');
+    updateSession(session.id, { coda_managed: 1 });
+    const refreshed = getSession(session.id)!;
+    insertOutboundOnChannel('ag-1', session.id, 'coda-out-1', 'coda');
+
+    let calls = 0;
+    setDeliveryAdapter({
+      async deliver() {
+        calls++;
+        return 'plat-msg-id';
+      },
+    });
+
+    await deliverSessionMessages(refreshed);
+    expect(calls).toBe(0);
+  });
+
+  it('filter drops coda rows on coda_managed sessions, passes A2A and others', () => {
+    const codaManaged = { coda_managed: 1 };
+    const notManaged = { coda_managed: 0 };
+    const rows = [
+      { id: 'a', channel_type: 'coda' },
+      { id: 'b', channel_type: 'agent' },
+      { id: 'c', channel_type: 'telegram' },
+      { id: 'd', channel_type: null },
+    ];
+
+    expect(applyCursorOwnershipFilter(codaManaged, rows).map((r) => r.id)).toEqual(['b', 'c', 'd']);
+    expect(applyCursorOwnershipFilter(notManaged, rows).map((r) => r.id)).toEqual(['a', 'b', 'c', 'd']);
   });
 
   it('does not re-deliver when retried after a successful send (cleanup-after-send safety)', async () => {
