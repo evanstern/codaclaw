@@ -116,6 +116,8 @@ export function resolveSession(
     container_status: 'stopped',
     last_active: null,
     created_at: new Date().toISOString(),
+    coda_managed: 0,
+    last_coda_sender: null,
   };
 
   createSession(session);

@@ -73,7 +73,9 @@ export function getRunningSessions(): Session[] {
 
 export function updateSession(
   id: string,
-  updates: Partial<Pick<Session, 'status' | 'container_status' | 'last_active' | 'agent_provider'>>,
+  updates: Partial<
+    Pick<Session, 'status' | 'container_status' | 'last_active' | 'agent_provider' | 'coda_managed' | 'last_coda_sender'>
+  >,
 ): void {
   const fields: string[] = [];
   const values: Record<string, unknown> = { id };

@@ -307,6 +307,8 @@ describe('sessions', () => {
     container_status: 'stopped' as const,
     last_active: null,
     created_at: now(),
+    coda_managed: 0,
+    last_coda_sender: null,
   });
 
   it('should create and retrieve', () => {
@@ -390,6 +392,8 @@ describe('pending questions', () => {
       container_status: 'stopped',
       last_active: null,
       created_at: now(),
+      coda_managed: 0,
+      last_coda_sender: null,
     });
   });
 
