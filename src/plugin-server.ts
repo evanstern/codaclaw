@@ -66,8 +66,10 @@ let activeSocketPath: string | null = null;
 
 /**
  * Start the IPC server. Idempotent — calling twice is a no-op (returns
- * the existing path). Cleans up a stale socket file at the path before
- * binding, since a previous crash may have left one.
+ * the existing path). On EADDRINUSE, probes whether the existing socket
+ * has a live listener before unlinking — avoids the split-brain where
+ * two hosts end up bound to the same path with one's socket file
+ * silently overwritten.
  */
 export async function startPluginServer(socketPath: string = defaultSocketPath()): Promise<string> {
   if (server) {
@@ -77,26 +79,41 @@ export async function startPluginServer(socketPath: string = defaultSocketPath()
 
   fs.mkdirSync(path.dirname(socketPath), { recursive: true });
 
-  // Stale socket from a previous crash. Safe to remove — no other process
-  // can be listening on it (else our listen() would fail with EADDRINUSE
-  // and we'd surface that). Removing a live one would just fail silently
-  // on the listen attempt.
-  if (fs.existsSync(socketPath)) {
+  const s = net.createServer(handleConnection);
+  let bound = false;
+  for (let attempt = 0; attempt < 2 && !bound; attempt++) {
     try {
-      fs.unlinkSync(socketPath);
+      await new Promise<void>((resolve, reject) => {
+        s.once('error', reject);
+        s.listen(socketPath, () => {
+          s.removeListener('error', reject);
+          resolve();
+        });
+      });
+      bound = true;
     } catch (err) {
-      log.warn('Failed to remove stale plugin socket', { socketPath, err });
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'EADDRINUSE' || attempt === 1) throw err;
+
+      // EADDRINUSE: probe whether anything is actually listening at the
+      // path. A live listener accepts the connect and we must NOT unlink.
+      // A stale socket file refuses with ECONNREFUSED — safe to unlink
+      // and retry once.
+      const stale = await new Promise<boolean>((resolve) => {
+        const probe = net.createConnection(socketPath);
+        probe.once('connect', () => {
+          probe.end();
+          resolve(false);
+        });
+        probe.once('error', () => resolve(true));
+      });
+      if (!stale) {
+        throw new Error(`plugin socket already in use by a live listener: ${socketPath}`);
+      }
+      log.warn('Removing stale plugin socket', { socketPath });
+      fs.unlinkSync(socketPath);
     }
   }
-
-  const s = net.createServer(handleConnection);
-  await new Promise<void>((resolve, reject) => {
-    s.once('error', reject);
-    s.listen(socketPath, () => {
-      s.removeListener('error', reject);
-      resolve();
-    });
-  });
 
   fs.chmodSync(socketPath, 0o600);
 
@@ -131,15 +148,36 @@ export async function stopPluginServer(): Promise<void> {
   log.info('Plugin server stopped', { sockPath });
 }
 
+const REQUEST_READ_TIMEOUT_MS = 10_000;
+const MAX_REQUEST_BYTES = 1024 * 1024;
+
 function handleConnection(sock: net.Socket): void {
   // One-shot framing: read until the first '\n', dispatch, write response,
   // end the socket. Plugin opens fresh socket per subcommand — simplest
   // protocol that fits the per-invocation shape.
   let buf = '';
   sock.setEncoding('utf8');
+  sock.setTimeout(REQUEST_READ_TIMEOUT_MS);
+
+  function reply(resp: PluginResponse): void {
+    sock.setTimeout(0);
+    sock.write(JSON.stringify(resp) + '\n', () => sock.end());
+  }
+
+  sock.on('timeout', () => {
+    log.warn('Plugin socket idle timeout', { timeoutMs: REQUEST_READ_TIMEOUT_MS });
+    sock.removeAllListeners('data');
+    reply({ ok: false, error: 'request timeout' });
+  });
 
   sock.on('data', (chunk: string) => {
     buf += chunk;
+    if (Buffer.byteLength(buf, 'utf8') > MAX_REQUEST_BYTES) {
+      log.warn('Plugin request exceeded max size', { maxRequestBytes: MAX_REQUEST_BYTES });
+      sock.removeAllListeners('data');
+      reply({ ok: false, error: 'request too large' });
+      return;
+    }
     const nl = buf.indexOf('\n');
     if (nl === -1) return;
     const line = buf.slice(0, nl);
@@ -147,13 +185,10 @@ function handleConnection(sock: net.Socket): void {
     // connection, multi-request is not a v0 feature.
     sock.removeAllListeners('data');
     dispatch(line)
-      .then((resp) => {
-        sock.write(JSON.stringify(resp) + '\n', () => sock.end());
-      })
+      .then(reply)
       .catch((err) => {
         log.error('Plugin dispatch threw', { err });
-        const resp: PluginErrorResponse = { ok: false, error: 'internal error' };
-        sock.write(JSON.stringify(resp) + '\n', () => sock.end());
+        reply({ ok: false, error: 'internal error' });
       });
   });
 
@@ -185,7 +220,8 @@ async function dispatch(line: string): Promise<PluginResponse> {
     case 'output':
       return handleOutput(req);
     default:
-      return { ok: false, error: `unknown op: ${(req as { op: string }).op}` };
+      log.warn('Plugin received unknown op', { op: (req as { op: string }).op });
+      return { ok: false, error: 'unknown op' };
   }
 }
 
