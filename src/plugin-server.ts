@@ -331,35 +331,57 @@ async function handleOutput(req: Extract<PluginRequest, { op: 'output' }>): Prom
   // channel_type='coda' is the Output() cursor-ownership filter — coda
   // owns the cursor on these rows, host delivery must skip them. See
   // deliver op for the writer side of this invariant.
-  const since = req.since;
+  //
+  // Cursor: seq-based, opaque to the plugin. The plugin echoes back
+  // whatever 'cursor' field it received on the previous row. Seq
+  // monotonically increases per session (container writes odd seqs
+  // via session-db.ts) so it's a stable total order; a timestamp
+  // cursor would have within-second collision risk on burst output.
+  const sinceSeq = parseSeqCursor(req.since);
   const db = openOutboundDb(session.agent_group_id, session.id);
   try {
-    const rows = since
-      ? (db
-          .prepare(
-            `SELECT id, timestamp, kind, content
-             FROM messages_out
-             WHERE channel_type = 'coda' AND timestamp > ?
-             ORDER BY seq ASC`,
-          )
-          .all(since) as Array<{ id: string; timestamp: string; kind: string; content: string }>)
-      : (db
-          .prepare(
-            `SELECT id, timestamp, kind, content
-             FROM messages_out
-             WHERE channel_type = 'coda'
-             ORDER BY seq ASC`,
-          )
-          .all() as Array<{ id: string; timestamp: string; kind: string; content: string }>);
+    const rows =
+      sinceSeq !== null
+        ? (db
+            .prepare(
+              `SELECT id, seq, timestamp, kind, content
+               FROM messages_out
+               WHERE channel_type = 'coda' AND seq > ?
+               ORDER BY seq ASC`,
+            )
+            .all(sinceSeq) as Array<{ id: string; seq: number; timestamp: string; kind: string; content: string }>)
+        : (db
+            .prepare(
+              `SELECT id, seq, timestamp, kind, content
+               FROM messages_out
+               WHERE channel_type = 'coda'
+               ORDER BY seq ASC`,
+            )
+            .all() as Array<{ id: string; seq: number; timestamp: string; kind: string; content: string }>);
 
     const messages = rows.map((r) => ({
       id: r.id,
       timestamp: r.timestamp,
       type: r.kind,
       body: r.content,
+      cursor: String(r.seq),
     }));
     return { ok: true, messages };
   } finally {
     db.close();
   }
+}
+
+/**
+ * Parse the opaque 'since' cursor. Returns the seq integer, or null
+ * if the cursor is missing/unparseable (treated as "from beginning").
+ * Accepts the legacy RFC3339 timestamp form as well — first output
+ * reply produces a fresh seq cursor and the plugin uses that going
+ * forward.
+ */
+function parseSeqCursor(since: string | undefined): number | null {
+  if (!since) return null;
+  const n = Number(since);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return null;
 }
