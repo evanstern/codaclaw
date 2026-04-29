@@ -26,6 +26,7 @@ import path from 'path';
 import { isContainerRunning, isContainerStarting, killContainer, wakeContainer } from './container-runner.js';
 import { createAgentGroup, getAgentGroup } from './db/agent-groups.js';
 import { getSession } from './db/sessions.js';
+import { isValidGroupFolder } from './group-folder.js';
 import { initGroupFilesystem } from './group-init.js';
 import { log } from './log.js';
 import { openOutboundDb, resolveSession, writeSessionMessage } from './session-manager.js';
@@ -193,6 +194,9 @@ async function handleStart(req: Extract<PluginRequest, { op: 'start' }>): Promis
   if (!slug || typeof slug !== 'string') {
     return { ok: false, error: 'missing agent slug' };
   }
+  if (!isValidGroupFolder(slug)) {
+    return { ok: false, error: 'invalid agent slug' };
+  }
 
   let group = getAgentGroup(slug);
   if (!group) {
@@ -237,7 +241,7 @@ async function handleDeliver(req: Extract<PluginRequest, { op: 'deliver' }>): Pr
     return { ok: false, error: 'missing message' };
   }
   const { id, from, body } = req.message;
-  if (!id || !from || typeof body !== 'string') {
+  if (typeof id !== 'string' || !id || typeof from !== 'string' || !from || typeof body !== 'string') {
     return { ok: false, error: 'invalid message shape' };
   }
 
