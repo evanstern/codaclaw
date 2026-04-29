@@ -65,6 +65,15 @@ export function isContainerRunning(sessionId: string): boolean {
 }
 
 /**
+ * True when wakeContainer has been called but the spawn hasn't completed.
+ * Distinct from running — a starting container has no `activeContainers`
+ * entry yet and isContainerRunning returns false.
+ */
+export function isContainerStarting(sessionId: string): boolean {
+  return wakePromises.has(sessionId) && !activeContainers.has(sessionId);
+}
+
+/**
  * Wake up a container for a session. If already running or mid-spawn, no-op
  * (the in-flight wake promise is reused).
  *
