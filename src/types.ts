@@ -109,6 +109,20 @@ export interface Session {
   container_status: 'running' | 'idle' | 'stopped';
   last_active: string | null;
   created_at: string;
+  /**
+   * True when the session was created via the plugin IPC socket (Card A's
+   * `start` op). The host delivery loop skips `channel_type='coda'` rows
+   * for these sessions — coda owns the cursor on coda-channel output.
+   * SQLite stores this as INTEGER 0/1; better-sqlite3 surfaces it as a
+   * number. Treat as boolean at use sites.
+   */
+  coda_managed: number;
+  /**
+   * Most recent inbound coda-side sender (the `from` field on a
+   * `channel_type='coda'` deliver call). Returned by Card A's `output`
+   * op so the plugin can populate `Message.To` on round-trip replies.
+   */
+  last_coda_sender: string | null;
 }
 
 // ── Session DB entities ──
