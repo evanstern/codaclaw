@@ -25,7 +25,7 @@ import path from 'path';
 
 import { isContainerRunning, isContainerStarting, killContainer, wakeContainer } from './container-runner.js';
 import { createAgentGroup, getAgentGroup } from './db/agent-groups.js';
-import { getSession } from './db/sessions.js';
+import { getSession, updateSession } from './db/sessions.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { initGroupFilesystem } from './group-init.js';
 import { log } from './log.js';
@@ -252,6 +252,16 @@ async function handleStart(req: Extract<PluginRequest, { op: 'start' }>): Promis
   const { session, created } = resolveSession(group.id, null, null, 'agent-shared');
   log.info('Plugin start resolved session', { slug, sessionId: session.id, created });
 
+  // Mark every plugin-created session as coda_managed. Idempotent on
+  // existing sessions reused by a second start call. The flag drives
+  // the host delivery loop's coda-channel skip in delivery.ts — without
+  // it, every coda outbound row would be drained twice (once by the
+  // plugin's output op, once by the host loop). Spec §Output() cursor-
+  // ownership invariant.
+  if (session.coda_managed !== 1) {
+    updateSession(session.id, { coda_managed: 1 });
+  }
+
   wakeContainer(session).catch((err) => {
     log.error('Plugin start wakeContainer failed', { sessionId: session.id, err });
   });
@@ -296,6 +306,12 @@ async function handleDeliver(req: Extract<PluginRequest, { op: 'deliver' }>): Pr
     content: JSON.stringify({ text: body }),
     trigger: 1,
   });
+
+  // last_coda_sender feeds Card A's output op so the plugin can populate
+  // Message.To on round-trip replies. Always overwritten — the most
+  // recent sender wins, matching coda's "reply to whoever spoke last"
+  // semantics.
+  updateSession(session.id, { last_coda_sender: from });
 
   wakeContainer(session).catch((err) => {
     log.error('Plugin deliver wakeContainer failed', { sessionId: session.id, err });
@@ -366,7 +382,7 @@ async function handleOutput(req: Extract<PluginRequest, { op: 'output' }>): Prom
       body: r.content,
       cursor: String(r.seq),
     }));
-    return { ok: true, messages };
+    return { ok: true, messages, last_coda_sender: session.last_coda_sender };
   } finally {
     db.close();
   }
